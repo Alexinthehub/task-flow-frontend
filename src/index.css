@@ -1,0 +1,37 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+/* ============ DARK MODE SUPPORT ============ */
+
+/* These styles apply only when <html class="dark"> */
+html.dark {
+  background-color: #0f172a;
+  color: #f1f5f9;
+}
+
+/* Sidebar / background areas */
+html.dark .bg-gray-800 { background-color: #1e293b; }
+html.dark .bg-gray-700 { background-color: #334155; }
+html.dark .bg-gray-600 { background-color: #475569; }
+html.dark .bg-gray-100 { background-color: #1e293b; }
+html.dark .bg-white { background-color: #1e293b; }
+
+/* Text */
+html.dark .text-gray-100 { color: #f1f5f9; }
+html.dark .text-gray-300 { color: #cbd5e1; }
+html.dark .text-gray-400 { color: #94a3b8; }
+html.dark .text-gray-500 { color: #64748b; }
+html.dark .text-black { color: #f1f5f9; }
+
+/* Borders */
+html.dark .border-gray-200 { border-color: #334155; }
+html.dark .border-gray-300 { border-color: #334155; }
+
+/* Form elements */
+html.dark input,
+html.dark textarea,
+html.dark select {
+  background-color: #1e293b !important;
+  border-color: #334155 !important;
+  color: #f1f5f9 !important;
+}
