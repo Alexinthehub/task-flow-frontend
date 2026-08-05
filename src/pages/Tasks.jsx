@@ -175,22 +175,23 @@ const Tasks = () => {
     );
   };
 
-  const filteredTasks = tasks.filter(task => {
-    let passesFilter = true;
-    if (filter === 'completed') passesFilter = task.status === 'completed';
-    else if (filter === 'pending') passesFilter = task.status !== 'completed';
-    else if (filter === 'favorites') passesFilter = task.is_favorite;
-    else if (filter === 'pinned') passesFilter = task.is_pinned;
-    // 'all' passes everything
+const filteredTasks = tasks.filter(task => {
+  let passesFilter = true;
+  if (filter === 'completed') passesFilter = task.status === 'completed';
+  else if (filter === 'pending') passesFilter = task.status !== 'completed';
+  else if (filter === 'favorites') passesFilter = task.is_favorite;
+  else if (filter === 'pinned') passesFilter = task.is_pinned;
+  else if (filter === 'shared') passesFilter = task.has_shared === true;
+  // 'all' passes everything
 
-    let passesSearch = true;
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
-      passesSearch = task.title.toLowerCase().includes(q) ||
-                     (task.description && task.description.toLowerCase().includes(q));
-    }
-    return passesFilter && passesSearch;
-  });
+  let passesSearch = true;
+  if (searchQuery.trim()) {
+    const q = searchQuery.toLowerCase();
+    passesSearch = task.title.toLowerCase().includes(q) ||
+                   (task.description && task.description.toLowerCase().includes(q));
+  }
+  return passesFilter && passesSearch;
+});
 
   // SORT: pinned tasks first
   const sortedTasks = [...filteredTasks].sort((a, b) => {
@@ -500,16 +501,17 @@ const Tasks = () => {
         <div className="flex gap-2 items-center">
           <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Filter:</label>
           <select
-            value={filter}
-            onChange={(e) => setFilter(e.target.value)}
-            className="bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-white rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="all">All</option>
-            <option value="pending">Pending</option>
-            <option value="completed">Completed</option>
-            <option value="favorites">Favorites</option>
-            <option value="pinned">Pinned</option>
-          </select>
+  value={filter}
+  onChange={(e) => setFilter(e.target.value)}
+  className="bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-white rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+>
+  <option value="all">All</option>
+  <option value="pending">Pending</option>
+  <option value="completed">Completed</option>
+  <option value="favorites">Favorites</option>
+  <option value="pinned">Pinned</option>
+  <option value="shared">Shared</option>
+</select>
         </div>
 
         {/* Search Bar – aggressively block autofill */}

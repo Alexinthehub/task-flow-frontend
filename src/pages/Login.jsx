@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate, Link } from 'react-router-dom';
 import { Eye, EyeOff, CheckCircle } from 'lucide-react';
@@ -11,8 +11,15 @@ const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
   const [loading, setLoading] = useState(false);
-  const { login } = useAuth();
+  const { login, user } = useAuth();
   const navigate = useNavigate();
+
+  // If user becomes authenticated, navigate immediately
+  useEffect(() => {
+    if (user) {
+      navigate('/dashboard');
+    }
+  }, [user, navigate]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -20,7 +27,8 @@ const Login = () => {
     setLoading(true);
     try {
       await login(username, password, rememberMe);
-      navigate('/dashboard');
+      // Small delay to ensure context update
+      setTimeout(() => navigate('/dashboard'), 100);
     } catch (err) {
       setError('Invalid credentials. Please try again.');
     } finally {
@@ -28,9 +36,7 @@ const Login = () => {
     }
   };
 
-  if (loading) {
-    return <LoadingSpinner />;
-  }
+  if (loading) return <LoadingSpinner />;
 
   return (
     <div className="min-h-screen flex">
@@ -59,8 +65,8 @@ const Login = () => {
             />
           </div>
           <p className="mt-6 text-blue-200 text-lg leading-relaxed">
-  Manage, organize, and complete your tasks efficiently with TaskFlow.
-</p>
+            Manage, organize, and complete your tasks efficiently with TaskFlow.
+          </p>
         </div>
       </div>
 

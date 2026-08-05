@@ -14,6 +14,8 @@ import LoadingSpinner from './components/LoadingSpinner';
 import { useState, useEffect } from 'react';
 import { useAuth } from './context/AuthContext';
 import SharedTask from './pages/SharedTask';
+import AdminPanel from './pages/AdminPanel';
+import AdminRoute from './components/AdminRoute';
 
 // Wrapper to show spinner on auth loading
 const AppContent = () => {
@@ -58,6 +60,14 @@ const AppContent = () => {
           </ProtectedRoute>
         }
       />
+      <Route
+  path="/admin"
+  element={
+    <AdminRoute>
+      <AdminPanel />
+    </AdminRoute>
+  }
+/>
       <Route path="/" element={<Login />} />
     </Routes>
   );

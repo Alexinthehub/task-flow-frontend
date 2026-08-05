@@ -7,7 +7,8 @@ import {
   TrendingUp, 
   AlertCircle,
   PieChart as PieChartIcon,
-  BarChart as BarChartIcon
+  BarChart as BarChartIcon,
+  X
 } from 'lucide-react';
 import {
   PieChart,
@@ -18,7 +19,6 @@ import {
   XAxis,
   YAxis,
   Tooltip,
-  Legend,
   ResponsiveContainer,
   CartesianGrid
 } from 'recharts';
@@ -26,8 +26,10 @@ import {
 const COLORS = ['#2563eb', '#f59e0b', '#10b981', '#ef4444', '#8b5cf6'];
 
 const Dashboard = () => {
+  const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [showWelcome, setShowWelcome] = useState(false);
   const [stats, setStats] = useState({
     total: 0,
     completed: 0,
@@ -38,6 +40,18 @@ const Dashboard = () => {
   const [statusData, setStatusData] = useState([]);
   const [categoryData, setCategoryData] = useState([]);
   const [recentTasks, setRecentTasks] = useState([]);
+
+  useEffect(() => {
+    // Check for welcome flag
+    if (localStorage.getItem('showWelcomeBack') === 'true') {
+      setShowWelcome(true);
+      const timer = setTimeout(() => {
+        setShowWelcome(false);
+        localStorage.removeItem('showWelcomeBack');
+      }, 4000);
+      return () => clearTimeout(timer);
+    }
+  }, []);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -71,6 +85,11 @@ const Dashboard = () => {
     fetchData();
   }, []);
 
+  const dismissWelcome = () => {
+    setShowWelcome(false);
+    localStorage.removeItem('showWelcomeBack');
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
@@ -93,11 +112,23 @@ const Dashboard = () => {
 
   return (
     <div className="space-y-6">
-      {/* Dashboard Header – removed date and avatar */}
-      <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Dashboard</h1>
-        {/* Only the title remains – avatar is in Layout */}
-      </div>
+      <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Dashboard</h1>
+
+      {/* Welcome Notification */}
+      {showWelcome && (
+        <div className="fixed top-20 right-4 bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-700 rounded-lg shadow-lg p-4 max-w-sm z-50 flex items-start gap-3">
+          <div className="flex-1">
+            <p className="font-semibold text-green-800 dark:text-green-300">Login Successful</p>
+            <p className="text-sm text-green-700 dark:text-green-400">Welcome back, {user?.username || 'User'}!</p>
+          </div>
+          <button
+            onClick={dismissWelcome}
+            className="text-green-600 dark:text-green-400 hover:text-green-800 dark:hover:text-green-200"
+          >
+            <X size={18} />
+          </button>
+        </div>
+      )}
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -139,7 +170,7 @@ const Dashboard = () => {
         </div>
       </div>
 
-      {/* Charts Row */}
+      {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
           <div className="flex items-center gap-2 mb-4">

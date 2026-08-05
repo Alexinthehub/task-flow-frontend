@@ -26,7 +26,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 
 const Settings = () => {
-  const { user, logout } = useAuth();
+  const { user, setUser, logout } = useAuth();
   const navigate = useNavigate();
   const { language, setLanguage, t } = useLanguage();
   const { darkMode, setDarkMode } = useTheme();
@@ -116,6 +116,9 @@ const Settings = () => {
       if (response.data.avatar) {
         setAvatarPreview(response.data.avatar);
         setFormData(prev => ({ ...prev, avatar: response.data.avatar }));
+        // Update user context so avatar appears globally
+        const profileRes = await profileAPI.get();
+        setUser(prev => ({ ...prev, avatar: profileRes.data.avatar }));
       }
       alert('Avatar uploaded successfully!');
     } catch (error) {
@@ -155,7 +158,6 @@ const Settings = () => {
     }
   };
 
-  // ---------- Delete Account (Fixed) ----------
   const handleDeleteAccount = async () => {
     setDeleteError('');
     setDeleteLoading(true);
@@ -164,13 +166,11 @@ const Settings = () => {
       alert('Account deleted successfully.');
       logout();
       navigate('/login');
-      // Only close modal on success
       setShowDeleteModal(false);
       setDeletePassword('');
     } catch (error) {
       const msg = error.response?.data?.error || 'Failed to delete account. Please check your password.';
       setDeleteError(msg);
-      // Keep modal open – do NOT close it
     } finally {
       setDeleteLoading(false);
     }

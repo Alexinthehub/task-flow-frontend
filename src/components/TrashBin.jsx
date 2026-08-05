@@ -2,14 +2,31 @@ import { useState, useEffect } from 'react';
 import { Trash2, RotateCcw, X } from 'lucide-react';
 import { tasksAPI } from '../services/api';
 
+const EXPIRY_DAYS = 30;
+
 const TrashBin = () => {
   const [deletedTasks, setDeletedTasks] = useState([]);
   const [isOpen, setIsOpen] = useState(false);
 
+  // Load tasks and remove expired ones
   useEffect(() => {
     const stored = localStorage.getItem('deletedTasks');
     if (stored) {
-      setDeletedTasks(JSON.parse(stored));
+      let tasks = JSON.parse(stored);
+      const now = Date.now();
+      const filtered = tasks.filter(task => {
+        const deletedAt = new Date(task.deleted_at).getTime();
+        const expiresAt = deletedAt + EXPIRY_DAYS * 24 * 60 * 60 * 1000;
+        if (now > expiresAt) {
+          // Expired → remove permanently
+          return false;
+        }
+        return true;
+      });
+      if (filtered.length !== tasks.length) {
+        localStorage.setItem('deletedTasks', JSON.stringify(filtered));
+      }
+      setDeletedTasks(filtered);
     }
   }, []);
 
@@ -32,11 +49,10 @@ const TrashBin = () => {
         alert('Task restored successfully!');
         window.dispatchEvent(new CustomEvent('taskRestored'));
       } else {
-        alert('Failed to restore task. Please try again.');
+        alert('Failed to restore task.');
       }
     } catch (error) {
-      console.error('Restore error:', error);
-      alert('Failed to restore task. Please try again.');
+      alert('Failed to restore task.');
     }
   };
 
@@ -49,6 +65,20 @@ const TrashBin = () => {
   const emptyTrash = () => {
     if (!confirm('Empty trash? All tasks will be permanently deleted.')) return;
     saveToLocalStorage([]);
+  };
+
+  // Compute remaining time
+  const getRemainingTime = (deletedAt) => {
+    const now = Date.now();
+    const deleted = new Date(deletedAt).getTime();
+    const expiry = deleted + EXPIRY_DAYS * 24 * 60 * 60 * 1000;
+    const diff = expiry - now;
+    if (diff <= 0) return 'Expired';
+    const days = Math.floor(diff / (24 * 60 * 60 * 1000));
+    const hours = Math.floor((diff % (24 * 60 * 60 * 1000)) / (60 * 60 * 1000));
+    if (days > 0) return `${days}d ${hours}h left`;
+    const minutes = Math.floor((diff % (60 * 60 * 1000)) / (60 * 1000));
+    return `${hours}h ${minutes}m left`;
   };
 
   return (
@@ -91,32 +121,41 @@ const TrashBin = () => {
             {deletedTasks.length === 0 ? (
               <p className="text-center text-gray-500 dark:text-gray-400 py-6 text-sm">Trash is empty</p>
             ) : (
-              deletedTasks.map((task) => (
-                <div key={task.id} className="flex items-center justify-between p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition">
-                  <div className="flex-1">
-                    <p className="text-sm font-medium text-gray-900 dark:text-white truncate">{task.title}</p>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">
-                      {task.due_date ? new Date(task.due_date).toLocaleDateString() : 'No due date'}
-                    </p>
+              deletedTasks.map((task) => {
+                const remaining = getRemainingTime(task.deleted_at);
+                const isExpired = remaining === 'Expired';
+                return (
+                  <div key={task.id} className="flex items-center justify-between p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition">
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-gray-900 dark:text-white truncate">{task.title}</p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">
+                        {isExpired ? (
+                          <span className="text-red-500">Expired</span>
+                        ) : (
+                          <span>⏳ {remaining}</span>
+                        )}
+                      </p>
+                    </div>
+                    <div className="flex gap-1">
+                      <button
+                        onClick={() => restoreTask(task)}
+                        disabled={isExpired}
+                        className="text-green-600 dark:text-green-400 hover:text-green-800 dark:hover:text-green-300 p-1 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+                        title="Restore"
+                      >
+                        <RotateCcw size={14} />
+                      </button>
+                      <button
+                        onClick={() => deletePermanently(task.id)}
+                        className="text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300 p-1 rounded"
+                        title="Delete permanently"
+                      >
+                        <X size={14} />
+                      </button>
+                    </div>
                   </div>
-                  <div className="flex gap-1">
-                    <button
-                      onClick={() => restoreTask(task)}
-                      className="text-green-600 dark:text-green-400 hover:text-green-800 dark:hover:text-green-300 p-1 rounded"
-                      title="Restore"
-                    >
-                      <RotateCcw size={14} />
-                    </button>
-                    <button
-                      onClick={() => deletePermanently(task.id)}
-                      className="text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300 p-1 rounded"
-                      title="Delete permanently"
-                    >
-                      <X size={14} />
-                    </button>
-                  </div>
-                </div>
-              ))
+                );
+              })
             )}
           </div>
         </div>
