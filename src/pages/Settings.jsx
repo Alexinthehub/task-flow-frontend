@@ -21,7 +21,9 @@ import {
   Trash2,
   Eye,
   EyeOff,
-  X
+  X,
+  HelpCircle,
+  Bug
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
@@ -39,6 +41,7 @@ const Settings = () => {
     avatar: null,
   });
   const [avatarPreview, setAvatarPreview] = useState(null);
+  const [avatarVersion, setAvatarVersion] = useState(0);
   const [loading, setLoading] = useState(true);
   const [isUploading, setIsUploading] = useState(false);
   const [passwordData, setPasswordData] = useState({
@@ -57,13 +60,13 @@ const Settings = () => {
   const nicknameInputRef = useRef(null);
   const screenshotInputRef = useRef(null);
 
-  // Delete Account state
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deletePassword, setDeletePassword] = useState('');
   const [deleteError, setDeleteError] = useState('');
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [showDeletePassword, setShowDeletePassword] = useState(false);
 
+  // Fetch profile on mount
   useEffect(() => {
     const fetchProfile = async () => {
       try {
@@ -75,7 +78,10 @@ const Settings = () => {
           nickname: data.nickname || '',
           avatar: data.avatar || null,
         });
-        if (data.avatar) setAvatarPreview(data.avatar);
+        if (data.avatar) {
+          setAvatarPreview(data.avatar + '?v=' + Date.now());
+          setAvatarVersion(prev => prev + 1);
+        }
       } catch (error) {
         console.error('Failed to fetch profile:', error);
       } finally {
@@ -84,6 +90,16 @@ const Settings = () => {
     };
     fetchProfile();
   }, []);
+
+  // Sync avatarPreview with user.avatar
+  useEffect(() => {
+    if (user?.avatar) {
+      setAvatarPreview(user.avatar + '?v=' + Date.now());
+      setAvatarVersion(prev => prev + 1);
+    } else {
+      setAvatarPreview(null);
+    }
+  }, [user?.avatar]);
 
   const focusNickname = () => {
     if (nicknameInputRef.current) {
@@ -104,26 +120,38 @@ const Settings = () => {
   const handleAvatarUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
-    if (file.size > 5 * 1024 * 1024) {
-      alert('Image must be less than 5MB.');
+
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+    if (!allowedTypes.includes(file.type)) {
+      alert('Please upload a valid image (JPEG, PNG, GIF, or WebP).');
+      e.target.value = '';
       return;
     }
+
+    if (file.size > 5 * 1024 * 1024) {
+      alert('Image must be less than 5MB.');
+      e.target.value = '';
+      return;
+    }
+
     const formData = new FormData();
     formData.append('avatar', file);
     setIsUploading(true);
     try {
       const response = await profileAPI.uploadAvatar(formData);
       if (response.data.avatar) {
-        setAvatarPreview(response.data.avatar);
-        setFormData(prev => ({ ...prev, avatar: response.data.avatar }));
-        // Update user context so avatar appears globally
         const profileRes = await profileAPI.get();
         setUser(prev => ({ ...prev, avatar: profileRes.data.avatar }));
+        const newUrl = profileRes.data.avatar + '?v=' + Date.now();
+        setAvatarPreview(newUrl);
+        setAvatarVersion(prev => prev + 1);
+        setFormData(prev => ({ ...prev, avatar: profileRes.data.avatar }));
+        alert('Avatar uploaded successfully!');
       }
-      alert('Avatar uploaded successfully!');
     } catch (error) {
       console.error('Upload error:', error);
-      alert('Failed to upload avatar.');
+      const msg = error.response?.data?.error || error.response?.data?.message || 'Failed to upload avatar.';
+      alert(msg);
     } finally {
       setIsUploading(false);
       e.target.value = '';
@@ -196,7 +224,7 @@ const Settings = () => {
       }, 2000);
     } catch (error) {
       console.error('Feedback error:', error);
-      setFeedbackError('Failed to send feedback. Please try again.');
+      setFeedbackError('Failed to send bug report. Please try again.');
       setFeedbackSubmitted(false);
     }
   };
@@ -208,10 +236,11 @@ const Settings = () => {
   };
 
   const navItems = [
-    { id: 'general', icon: SettingsIcon, label: t('general') },
-    { id: 'account', icon: User, label: t('account') },
-    { id: 'app', icon: Info, label: t('app') },
-    { id: 'support', icon: Mail, label: t('support') },
+    { id: 'general', icon: SettingsIcon, label: 'General' },
+    { id: 'account', icon: User, label: 'Account' },
+    { id: 'app', icon: Info, label: 'App' },
+    { id: 'support', icon: Bug, label: 'Report Bug' },
+    { id: 'faq', icon: HelpCircle, label: 'FAQs' },
   ];
 
   if (loading) return <div className="text-center text-gray-500 dark:text-gray-400">Loading...</div>;
@@ -248,9 +277,9 @@ const Settings = () => {
           {/* General */}
           {activeSection === 'general' && (
             <div>
-              <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">{t('general')}</h2>
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">General Settings</h2>
               <div className="mb-6 bg-gray-50 dark:bg-gray-700 rounded-lg p-4 border border-gray-200 dark:border-gray-600">
-                <h3 className="font-medium text-gray-900 dark:text-white mb-3 flex items-center gap-2">{t('theme')}</h3>
+                <h3 className="font-medium text-gray-900 dark:text-white mb-3 flex items-center gap-2">App Theme</h3>
                 <div className="flex items-center gap-4">
                   <button
                     onClick={() => setDarkMode(true)}
@@ -276,7 +305,7 @@ const Settings = () => {
 
               <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 border border-gray-200 dark:border-gray-600">
                 <h3 className="font-medium text-gray-900 dark:text-white mb-3 flex items-center gap-2">
-                  <Globe size={18} /> {t('language')}
+                  <Globe size={18} /> Language
                 </h3>
                 <select
                   value={language}
@@ -296,7 +325,7 @@ const Settings = () => {
           {/* Account */}
           {activeSection === 'account' && (
             <div>
-              <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">{t('account')}</h2>
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">Account Settings</h2>
               <div className="mb-6 bg-gray-50 dark:bg-gray-700 rounded-lg p-4 border border-gray-200 dark:border-gray-600">
                 <h3 className="font-medium text-gray-900 dark:text-white mb-3 flex items-center gap-2">
                   <User size={18} /> Edit Profile
@@ -308,7 +337,16 @@ const Settings = () => {
                       <div className="flex items-center gap-4">
                         <div className="w-20 h-20 rounded-full bg-gray-200 dark:bg-gray-600 flex items-center justify-center overflow-hidden">
                           {avatarPreview ? (
-                            <img src={avatarPreview} alt="Avatar" className="w-full h-full object-cover" />
+                            <img
+                              key={avatarVersion}
+                              src={avatarPreview}
+                              alt="Avatar"
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                console.error('Image failed to load:', e);
+                                e.target.src = 'https://via.placeholder.com/80/cccccc/ffffff?text=Avatar';
+                              }}
+                            />
                           ) : (
                             <User size={32} className="text-gray-500 dark:text-gray-400" />
                           )}
@@ -378,7 +416,7 @@ const Settings = () => {
 
               <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 border border-gray-200 dark:border-gray-600">
                 <h3 className="font-medium text-gray-900 dark:text-white mb-3 flex items-center gap-2">
-                  <Key size={18} /> {t('changePassword')}
+                  <Key size={18} /> Change Password
                 </h3>
                 <form onSubmit={handlePasswordChange}>
                   <div className="space-y-3">
@@ -422,7 +460,6 @@ const Settings = () => {
                 </form>
               </div>
 
-              {/* Delete Account Button */}
               <div className="mt-6 border-t border-gray-200 dark:border-gray-600 pt-4">
                 <button
                   onClick={() => setShowDeleteModal(true)}
@@ -441,17 +478,17 @@ const Settings = () => {
           {/* App */}
           {activeSection === 'app' && (
             <div>
-              <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">{t('app')}</h2>
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">App Settings</h2>
               <div className="mb-4 bg-gray-50 dark:bg-gray-700 rounded-lg p-4 border border-gray-200 dark:border-gray-600">
-                <h3 className="font-medium text-gray-900 dark:text-white mb-2">{t('about')}</h3>
+                <h3 className="font-medium text-gray-900 dark:text-white mb-2">About TaskFlow</h3>
                 <p className="text-gray-700 dark:text-gray-300">Version: 2.1.0</p>
                 <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">
-                  TaskFlow is a task management system built with Django and React.
+                  TaskFlow helps you organise your tasks, stay on track, and get more done – simply and securely.
                 </p>
               </div>
               <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 border border-gray-200 dark:border-gray-600">
                 <h3 className="font-medium text-gray-900 dark:text-white mb-2 flex items-center gap-2">
-                  <Shield size={18} /> {t('privacy')}
+                  <Shield size={18} /> Privacy Notice
                 </h3>
                 <p className="text-gray-700 dark:text-gray-300 text-sm leading-relaxed">
                   TaskFlow is committed to protecting your privacy. 
@@ -462,33 +499,33 @@ const Settings = () => {
             </div>
           )}
 
-          {/* Support */}
+          {/* Report Bug */}
           {activeSection === 'support' && (
             <div>
-              <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">{t('support')}</h2>
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">Report a Bug</h2>
 
               {!showFeedbackForm ? (
                 <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-6 text-center border border-gray-200 dark:border-gray-600">
-                  <Mail className="w-12 h-12 text-blue-600 dark:text-blue-400 mx-auto mb-3" />
-                  <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">{t('feedback')}</h3>
-                  <p className="text-gray-500 dark:text-gray-400 mb-4">We value your input and strive to improve.</p>
+                  <Bug className="w-12 h-12 text-blue-600 dark:text-blue-400 mx-auto mb-3" />
+                  <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">Report a Bug</h3>
+                  <p className="text-gray-500 dark:text-gray-400 mb-4">Help us improve by reporting any issues you encounter.</p>
                   <button
                     onClick={() => setShowFeedbackForm(true)}
                     className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg transition"
                   >
-                    Open Feedback Form
+                    Report Bug
                   </button>
                 </div>
               ) : (
                 <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-6 border border-gray-200 dark:border-gray-600">
-                  <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Let us know how we can improve</h3>
+                  <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Let us know what went wrong</h3>
 
                   {feedbackSubmitted ? (
                     <div className="text-center py-8">
                       <div className="w-16 h-16 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
                         <Mail className="w-8 h-8 text-green-600 dark:text-green-400" />
                       </div>
-                      <p className="text-green-600 dark:text-green-400 font-medium">Thank you for your feedback!</p>
+                      <p className="text-green-600 dark:text-green-400 font-medium">Thank you for your report!</p>
                       <p className="text-gray-500 dark:text-gray-400 text-sm mt-2">We'll review it shortly.</p>
                     </div>
                   ) : (
@@ -510,10 +547,10 @@ const Settings = () => {
                           />
                         </div>
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Your Message <span className="text-red-600 dark:text-red-400">*</span></label>
+                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Describe the issue <span className="text-red-600 dark:text-red-400">*</span></label>
                           <textarea
                             rows="4"
-                            placeholder="Describe your issue or suggestion..."
+                            placeholder="What happened? What were you doing when the issue occurred?"
                             value={feedback.message}
                             onChange={(e) => setFeedback({...feedback, message: e.target.value})}
                             className="w-full bg-white dark:bg-gray-600 border border-gray-300 dark:border-gray-500 rounded-lg px-4 py-2 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -545,13 +582,46 @@ const Settings = () => {
                           type="submit"
                           className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg transition"
                         >
-                          Submit Feedback
+                          Submit Bug Report
                         </button>
                       </div>
                     </form>
                   )}
                 </div>
               )}
+            </div>
+          )}
+
+          {/* FAQ */}
+          {activeSection === 'faq' && (
+            <div>
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">Frequently Asked Questions</h2>
+              <div className="space-y-4">
+                <div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg border border-gray-200 dark:border-gray-600">
+                  <h3 className="font-medium text-gray-900 dark:text-white">What is TaskFlow?</h3>
+                  <p className="text-gray-600 dark:text-gray-300">TaskFlow is a task management app that helps you organise, track, and complete your tasks efficiently.</p>
+                </div>
+                <div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg border border-gray-200 dark:border-gray-600">
+                  <h3 className="font-medium text-gray-900 dark:text-white">How do I create a task?</h3>
+                  <p className="text-gray-600 dark:text-gray-300">Click the "Add Task" button on the Tasks page, fill in the details, and click "Create".</p>
+                </div>
+                <div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg border border-gray-200 dark:border-gray-600">
+                  <h3 className="font-medium text-gray-900 dark:text-white">How do I lock a task?</h3>
+                  <p className="text-gray-600 dark:text-gray-300">Select a task, click the lock icon, verify your identity, and set a lock password.</p>
+                </div>
+                <div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg border border-gray-200 dark:border-gray-600">
+                  <h3 className="font-medium text-gray-900 dark:text-white">Can I share tasks with others?</h3>
+                  <p className="text-gray-600 dark:text-gray-300">Yes! Select a task, click the share icon, and share via email or link.</p>
+                </div>
+                <div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg border border-gray-200 dark:border-gray-600">
+                  <h3 className="font-medium text-gray-900 dark:text-white">How do I reset my password?</h3>
+                  <p className="text-gray-600 dark:text-gray-300">Click "Forgot Password?" on the login page and follow the instructions sent to your email.</p>
+                </div>
+                <div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg border border-gray-200 dark:border-gray-600">
+                  <h3 className="font-medium text-gray-900 dark:text-white">Is my data secure?</h3>
+                  <p className="text-gray-600 dark:text-gray-300">Yes, TaskFlow uses JWT tokens for secure authentication and encrypts all passwords.</p>
+                </div>
+              </div>
             </div>
           )}
         </div>

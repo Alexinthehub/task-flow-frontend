@@ -10,7 +10,7 @@ import {
 } from 'lucide-react';
 import TrashBin from './TrashBin';
 import { useEffect, useState } from 'react';
-import { notificationsAPI, profileAPI } from '../services/api';
+import { notificationsAPI } from '../services/api';
 import LoadingSpinner from './LoadingSpinner';
 
 const Layout = ({ children }) => {
@@ -20,7 +20,6 @@ const Layout = ({ children }) => {
   const { t } = useLanguage();
   const [unreadCount, setUnreadCount] = useState(0);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
-  const [avatar, setAvatar] = useState(null);
 
   const fetchUnreadCount = async () => {
     try {
@@ -31,20 +30,8 @@ const Layout = ({ children }) => {
     }
   };
 
-  const fetchProfile = async () => {
-    try {
-      const response = await profileAPI.get();
-      if (response.data.avatar) {
-        setAvatar(response.data.avatar);
-      }
-    } catch (error) {
-      console.error('Failed to fetch profile:', error);
-    }
-  };
-
   useEffect(() => {
     fetchUnreadCount();
-    fetchProfile();
     const handleNew = () => fetchUnreadCount();
     window.addEventListener('notificationCreated', handleNew);
     window.addEventListener('notificationMarkedRead', handleNew);
@@ -73,6 +60,14 @@ const Layout = ({ children }) => {
     { path: '/notifications', icon: Bell, label: t('notifications'), badge: unreadCount },
     { path: '/profile', icon: User, label: t('profile') },
   ];
+
+  // Build avatar URL with cache buster
+  const getAvatarUrl = () => {
+    if (user?.avatar) {
+      return user.avatar + '?v=' + Date.now();
+    }
+    return null;
+  };
 
   const getInitial = () => {
     const email = user?.email || '';
@@ -124,14 +119,21 @@ const Layout = ({ children }) => {
       </aside>
 
       <main className="flex-1 p-8 overflow-y-auto relative bg-gray-50 dark:bg-gray-900">
-        {/* Top-right avatar circle */}
         <div className="flex justify-end mb-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center text-white font-bold text-sm overflow-hidden">
-              {avatar ? (
-                <img src={avatar} alt="Avatar" className="w-full h-full object-cover" />
+              {user?.avatar ? (
+                <img
+                  src={getAvatarUrl()}
+                  alt="Avatar"
+                  className="w-full h-full object-cover"
+                  onError={(e) => {
+                    e.target.style.display = 'none';
+                    e.target.parentElement.textContent = getInitial();
+                  }}
+                />
               ) : (
-                getInitial()
+                <span>{getInitial()}</span>
               )}
             </div>
           </div>

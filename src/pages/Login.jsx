@@ -14,7 +14,6 @@ const Login = () => {
   const { login, user } = useAuth();
   const navigate = useNavigate();
 
-  // If user becomes authenticated, navigate immediately
   useEffect(() => {
     if (user) {
       navigate('/dashboard');
@@ -27,7 +26,6 @@ const Login = () => {
     setLoading(true);
     try {
       await login(username, password, rememberMe);
-      // Small delay to ensure context update
       setTimeout(() => navigate('/dashboard'), 100);
     } catch (err) {
       setError('Invalid credentials. Please try again.');
@@ -85,7 +83,7 @@ const Login = () => {
 
             <form onSubmit={handleSubmit} className="space-y-5">
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-1">Email or Username</label>
+                <label className="block text-sm font-medium text-gray-300 mb-1">Username or Email</label>
                 <input
                   type="text"
                   value={username}

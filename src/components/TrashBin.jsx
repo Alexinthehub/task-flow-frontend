@@ -1,16 +1,21 @@
 import { useState, useEffect } from 'react';
 import { Trash2, RotateCcw, X } from 'lucide-react';
 import { tasksAPI } from '../services/api';
+import { useAuth } from '../context/AuthContext';
 
 const EXPIRY_DAYS = 30;
 
 const TrashBin = () => {
+  const { user } = useAuth();
   const [deletedTasks, setDeletedTasks] = useState([]);
   const [isOpen, setIsOpen] = useState(false);
+  
+  // Use user-specific storage key
+  const userId = user?.id || 'anonymous';
+  const STORAGE_KEY = `deletedTasks_${userId}`;
 
-  // Load tasks and remove expired ones
   useEffect(() => {
-    const stored = localStorage.getItem('deletedTasks');
+    const stored = localStorage.getItem(STORAGE_KEY);
     if (stored) {
       let tasks = JSON.parse(stored);
       const now = Date.now();
@@ -18,20 +23,19 @@ const TrashBin = () => {
         const deletedAt = new Date(task.deleted_at).getTime();
         const expiresAt = deletedAt + EXPIRY_DAYS * 24 * 60 * 60 * 1000;
         if (now > expiresAt) {
-          // Expired → remove permanently
           return false;
         }
         return true;
       });
       if (filtered.length !== tasks.length) {
-        localStorage.setItem('deletedTasks', JSON.stringify(filtered));
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(filtered));
       }
       setDeletedTasks(filtered);
     }
-  }, []);
+  }, [STORAGE_KEY]);
 
   const saveToLocalStorage = (tasks) => {
-    localStorage.setItem('deletedTasks', JSON.stringify(tasks));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks));
     setDeletedTasks(tasks);
   };
 

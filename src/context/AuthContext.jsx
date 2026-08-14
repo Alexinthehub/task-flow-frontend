@@ -8,7 +8,7 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // On app load, check for token and fetch profile
+  // On app load, check token and validate it
   useEffect(() => {
     const token = localStorage.getItem('accessToken');
     if (token) {
@@ -23,7 +23,11 @@ export const AuthProvider = ({ children }) => {
           });
         })
         .catch(() => {
+          // Token is invalid
           localStorage.removeItem('accessToken');
+          localStorage.removeItem('refreshToken');
+          localStorage.removeItem('rememberMe');
+          localStorage.removeItem('showWelcomeBack');
           setUser(null);
         })
         .finally(() => setLoading(false));
@@ -42,7 +46,6 @@ export const AuthProvider = ({ children }) => {
     } else {
       localStorage.removeItem('rememberMe');
     }
-    // Set welcome flag
     localStorage.setItem('showWelcomeBack', 'true');
     const profileResponse = await profileAPI.get();
     setUser({
@@ -56,7 +59,6 @@ export const AuthProvider = ({ children }) => {
   };
 
   const register = async (userData) => {
-    // Clear any old lock data on new registration
     localStorage.removeItem('taskflow_lock_password');
     localStorage.removeItem('taskflow_verified');
     const response = await authAPI.register(userData);
@@ -74,7 +76,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, logout }}>
+    <AuthContext.Provider value={{ user, setUser, loading, login, register, logout }}>
       {children}
     </AuthContext.Provider>
   );

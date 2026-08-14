@@ -9,16 +9,6 @@ const TaskItem = ({ task, selected, onSelect, onEdit, onView }) => {
 
   const toggleMenu = () => setShowMenu(!showMenu);
 
-  // Handle click on the container – toggle selection
-  const handleContainerClick = () => {
-    onSelect(task.id);
-  };
-
-  // Prevent propagation from interactive elements
-  const handleInteractiveClick = (e) => {
-    e.stopPropagation();
-  };
-
   return (
     <div
       className={`relative border rounded-lg p-4 mb-2 transition cursor-pointer ${
@@ -26,11 +16,11 @@ const TaskItem = ({ task, selected, onSelect, onEdit, onView }) => {
           ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
           : 'border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800/50'
       } ${isLocked ? 'opacity-80' : ''}`}
-      onClick={handleContainerClick}
+      onClick={() => onSelect(task.id)}
     >
       <div className="flex items-center gap-3">
         {/* Checkbox – visual only, toggled by container click */}
-        <div className="relative" onClick={handleInteractiveClick}>
+        <div className="relative" onClick={(e) => e.stopPropagation()}>
           <input
             type="checkbox"
             checked={selected}
@@ -50,12 +40,16 @@ const TaskItem = ({ task, selected, onSelect, onEdit, onView }) => {
 
         <div className="flex-1">
           <h3 className="font-semibold text-gray-900 dark:text-white">{task.title}</h3>
-          {task.description && (
-            <p className="text-sm text-gray-600 dark:text-gray-400">{task.description}</p>
+          {isLocked ? (
+            <p className="text-sm text-gray-400 italic">🔒 This task is locked</p>
+          ) : (
+            task.description && (
+              <p className="text-sm text-gray-600 dark:text-gray-400">{task.description}</p>
+            )
           )}
         </div>
 
-        <div className="flex items-center gap-2 relative" onClick={handleInteractiveClick}>
+        <div className="flex items-center gap-2 relative" onClick={(e) => e.stopPropagation()}>
           {isFavorite && <Star size={16} className="text-yellow-500 fill-current" />}
           {isLocked && <Lock size={16} className="text-red-500" />}
           {isPinned && <Pin size={16} className="text-blue-500 fill-current" />}

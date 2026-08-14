@@ -23,8 +23,6 @@ import {
   CartesianGrid
 } from 'recharts';
 
-const COLORS = ['#2563eb', '#f59e0b', '#10b981', '#ef4444', '#8b5cf6'];
-
 const Dashboard = () => {
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
@@ -41,8 +39,14 @@ const Dashboard = () => {
   const [categoryData, setCategoryData] = useState([]);
   const [recentTasks, setRecentTasks] = useState([]);
 
+  // Priority colour mapping
+  const PRIORITY_COLORS = {
+    high: '#ef4444',    // Red
+    medium: '#3b82f6',  // Blue
+    low: '#f59e0b',     // Orange
+  };
+
   useEffect(() => {
-    // Check for welcome flag
     if (localStorage.getItem('showWelcomeBack') === 'true') {
       setShowWelcome(true);
       const timer = setTimeout(() => {
@@ -69,7 +73,12 @@ const Dashboard = () => {
           pending: analytics.pending || 0,
           due_this_week: analytics.due_this_week || 0,
         });
-        setPriorityData(analytics.priority_counts || []);
+        // Map priority data with colours
+        const priority = (analytics.priority_counts || []).map(item => ({
+          ...item,
+          color: PRIORITY_COLORS[item.priority] || '#94a3b8',
+        }));
+        setPriorityData(priority);
         setStatusData(analytics.status_counts || []);
         setCategoryData(analytics.category_counts || []);
 
@@ -191,8 +200,8 @@ const Dashboard = () => {
                   outerRadius={90}
                   label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
                 >
-                  {priorityData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  {priorityData.map((entry) => (
+                    <Cell key={`cell-${entry.priority}`} fill={entry.color} />
                   ))}
                 </Pie>
                 <Tooltip />

@@ -33,9 +33,12 @@ const AdminPanel = () => {
     template_id: '',
     recipient_filter: 'all',
   });
+  const [rawUsersResponse, setRawUsersResponse] = useState(null); // For debugging
 
+  // Auto‑fetch on mount
   useEffect(() => {
     fetchData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const fetchData = async () => {
@@ -47,14 +50,41 @@ const AdminPanel = () => {
         api.get('/admin/users/'),
         api.get('/admin/templates/'),
       ]);
-      setStats(statsRes.data);
+      console.log('📥 Users response:', usersRes.data);
+      setRawUsersResponse(usersRes.data); // Store raw for debugging
+      
+      // Robust handling of user data
+      let usersData = usersRes.data;
+      if (!Array.isArray(usersData)) {
+        // If it's an object with a 'results' key (Django REST pagination), extract it
+        if (usersData && typeof usersData === 'object' && usersData.results) {
+          usersData = usersData.results;
+        } else {
+          // If it's a plain object, try to convert to array
+          console.warn('Users data is not an array. Attempting to convert:', usersData);
+          // If it's an object with numeric keys, convert to array
+          if (usersData && typeof usersData === 'object') {
+            const values = Object.values(usersData);
+            if (values.length > 0 && values.every(v => typeof v === 'object')) {
+              usersData = values;
+            } else {
+              usersData = [];
+            }
+          } else {
+            usersData = [];
+          }
+        }
+      }
+      
       // Sort: staff first, then alphabetically
-      const sorted = [...usersRes.data].sort((a, b) => {
+      const sorted = [...usersData].sort((a, b) => {
         if (a.is_staff && !b.is_staff) return -1;
         if (!a.is_staff && b.is_staff) return 1;
         return a.username.localeCompare(b.username);
       });
+      console.log('✅ Sorted users:', sorted);
       setUsers(sorted);
+      setStats(statsRes.data);
       setTemplates(templatesRes.data);
     } catch (err) {
       console.error('Admin fetch error:', err);
@@ -76,7 +106,21 @@ const AdminPanel = () => {
     try {
       await api.patch(`/admin/users/${userId}/`, { is_active: !currentStatus });
       const res = await api.get('/admin/users/');
-      setUsers(res.data);
+      // Re-apply sorting and data extraction
+      let usersData = res.data;
+      if (!Array.isArray(usersData)) {
+        if (usersData && usersData.results) {
+          usersData = usersData.results;
+        } else {
+          usersData = [];
+        }
+      }
+      const sorted = [...usersData].sort((a, b) => {
+        if (a.is_staff && !b.is_staff) return -1;
+        if (!a.is_staff && b.is_staff) return 1;
+        return a.username.localeCompare(b.username);
+      });
+      setUsers(sorted);
     } catch (err) {
       console.error('Toggle error:', err);
       alert('Failed to update user.');
@@ -182,6 +226,16 @@ const AdminPanel = () => {
     return '⚪ Offline';
   };
 
+  const getLastSeenMinutes = (userData) => {
+    if (!userData.profile || !userData.profile.last_seen) return 'Never';
+    const lastSeen = new Date(userData.profile.last_seen);
+    const now = new Date();
+    const diffMinutes = (now - lastSeen) / 60000;
+    if (diffMinutes < 1) return 'Just now';
+    if (diffMinutes < 60) return `${Math.floor(diffMinutes)}m ago`;
+    return `${Math.floor(diffMinutes / 60)}h ${Math.floor(diffMinutes % 60)}m ago`;
+  };
+
   // ---------- Render ----------
   if (loading) {
     return (
@@ -222,9 +276,9 @@ const AdminPanel = () => {
         </div>
         <button
           onClick={fetchData}
-          className="bg-gray-200 dark:bg-gray-700 p-2 rounded hover:bg-gray-300 dark:hover:bg-gray-600"
+          className="bg-blue-600 text-white px-4 py-2 rounded flex items-center gap-2 hover:bg-blue-700"
         >
-          <RefreshCw size={20} />
+          <RefreshCw size={20} /> Refresh
         </button>
       </div>
 
@@ -395,61 +449,80 @@ const AdminPanel = () => {
                 <th className="px-4 py-2">Username</th>
                 <th className="px-4 py-2">Email</th>
                 <th className="px-4 py-2">Status</th>
+                <th className="px-4 py-2">Last Seen</th>
                 <th className="px-4 py-2">Account</th>
                 <th className="px-4 py-2">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-              {users
-                .filter(u => u.username.toLowerCase().includes(search.toLowerCase()) || u.email.toLowerCase().includes(search.toLowerCase()))
-                .map(u => {
-                  const isAdmin = u.is_staff || u.is_superuser;
-                  return (
-                    <tr key={u.id}>
-                      <td className="px-4 py-2">
-                        <input
-                          type="checkbox"
-                          checked={selectedUsers.includes(u.id)}
-                          onChange={(e) => {
-                            if (e.target.checked) setSelectedUsers([...selectedUsers, u.id]);
-                            else setSelectedUsers(selectedUsers.filter(id => id !== u.id));
-                          }}
-                        />
-                      </td>
-                      <td className="px-4 py-2">{u.id}</td>
-                      <td className="px-4 py-2 flex items-center gap-1">
-                        {u.username}
-                        {isAdmin && <Crown className="w-4 h-4 text-yellow-500" />}
-                      </td>
-                      <td className="px-4 py-2">{u.email}</td>
-                      <td className="px-4 py-2">
-                        <span className="text-sm">{getOnlineStatus(u)}</span>
-                      </td>
-                      <td className="px-4 py-2">
-                        {u.id === user.id ? (
-                          <span className="text-xs text-gray-500">(you)</span>
-                        ) : (
-                          <button
-                            onClick={() => handleToggleActive(u.id, u.is_active)}
-                            className={`px-2 py-1 rounded text-xs ${u.is_active ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300' : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300'}`}
-                          >
-                            {u.is_active ? 'Active' : 'Inactive'}
-                          </button>
-                        )}
-                      </td>
-                      <td className="px-4 py-2">
-                        {u.id !== user.id && (
-                          <button onClick={() => handleDeleteUser(u.id)} className="text-red-600 hover:text-red-800">
-                            <Trash2 size={16} />
-                          </button>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
+              {users.length === 0 ? (
+                <tr>
+                  <td colSpan="8" className="px-4 py-6 text-center">
+                    <p className="text-gray-500">No users found.</p>
+                    {rawUsersResponse && (
+                      <details className="mt-2 text-left">
+                        <summary className="cursor-pointer text-blue-500">Raw response (click to expand)</summary>
+                        <pre className="bg-gray-100 dark:bg-gray-800 p-2 rounded mt-2 text-xs overflow-auto max-h-40">
+                          {JSON.stringify(rawUsersResponse, null, 2)}
+                        </pre>
+                      </details>
+                    )}
+                  </td>
+                </tr>
+              ) : (
+                users
+                  .filter(u => u.username.toLowerCase().includes(search.toLowerCase()) || u.email.toLowerCase().includes(search.toLowerCase()))
+                  .map(u => {
+                    const isAdmin = u.is_staff || u.is_superuser;
+                    return (
+                      <tr key={u.id}>
+                        <td className="px-4 py-2">
+                          <input
+                            type="checkbox"
+                            checked={selectedUsers.includes(u.id)}
+                            onChange={(e) => {
+                              if (e.target.checked) setSelectedUsers([...selectedUsers, u.id]);
+                              else setSelectedUsers(selectedUsers.filter(id => id !== u.id));
+                            }}
+                          />
+                        </td>
+                        <td className="px-4 py-2">{u.id}</td>
+                        <td className="px-4 py-2 flex items-center gap-1">
+                          {u.username}
+                          {isAdmin && <Crown className="w-4 h-4 text-yellow-500" />}
+                        </td>
+                        <td className="px-4 py-2">{u.email}</td>
+                        <td className="px-4 py-2">
+                          <span className="text-sm">{getOnlineStatus(u)}</span>
+                        </td>
+                        <td className="px-4 py-2 text-xs text-gray-500">
+                          {getLastSeenMinutes(u)}
+                        </td>
+                        <td className="px-4 py-2">
+                          {u.id === user.id ? (
+                            <span className="text-xs text-gray-500">(you)</span>
+                          ) : (
+                            <button
+                              onClick={() => handleToggleActive(u.id, u.is_active)}
+                              className={`px-2 py-1 rounded text-xs ${u.is_active ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300' : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300'}`}
+                            >
+                              {u.is_active ? 'Active' : 'Inactive'}
+                            </button>
+                          )}
+                        </td>
+                        <td className="px-4 py-2">
+                          {u.id !== user.id && (
+                            <button onClick={() => handleDeleteUser(u.id)} className="text-red-600 hover:text-red-800">
+                              <Trash2 size={16} />
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })
+              )}
             </tbody>
           </table>
-          {users.length === 0 && <p className="text-center text-gray-500 py-4">No users found.</p>}
         </div>
       </div>
 

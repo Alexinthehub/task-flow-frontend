@@ -168,6 +168,30 @@ const Tasks = () => {
     setError('');
   };
 
+  const [formData, setFormData] = useState({
+  title: '',
+  description: '',
+  due_date: '',
+  status: 'pending',
+  priority: 'medium',
+  category_ids: [],
+  recurrence: 'none',
+});
+  <div>
+  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Recurrence</label>
+  <select
+    name="recurrence"
+    className="mt-1 w-full bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+    value={formData.recurrence}
+    onChange={handleInputChange}
+  >
+    <option value="none">None</option>
+    <option value="daily">Daily</option>
+    <option value="weekly">Weekly</option>
+    <option value="monthly">Monthly</option>
+  </select>
+</div>
+
   // ---------- Selection ----------
   const handleSelect = (id) => {
     setSelectedTasks(prev =>
@@ -647,7 +671,6 @@ const filteredTasks = tasks.filter(task => {
                     onChange={handleInputChange}
                   >
                     <option value="pending">Pending</option>
-                    <option value="completed">Completed</option>
                   </select>
                 </div>
                 {/* Priority */}
