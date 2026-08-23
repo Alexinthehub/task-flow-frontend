@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate, Link } from 'react-router-dom';
+import { useLanguage } from '../context/LanguageContext';
 import { Eye, EyeOff, CheckCircle } from 'lucide-react';
 import LoadingSpinner from '../components/LoadingSpinner';
 
@@ -12,6 +13,7 @@ const Login = () => {
   const [rememberMe, setRememberMe] = useState(false);
   const [loading, setLoading] = useState(false);
   const { login, user } = useAuth();
+  const { t } = useLanguage();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -28,7 +30,7 @@ const Login = () => {
       await login(username, password, rememberMe);
       setTimeout(() => navigate('/dashboard'), 100);
     } catch (err) {
-      setError('Invalid credentials. Please try again.');
+      setError(t('InvalidCredentials') || 'Invalid credentials. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -53,7 +55,7 @@ const Login = () => {
             </div>
             <h1 className="text-5xl font-bold">TaskFlow</h1>
           </div>
-          <p className="text-2xl font-light text-blue-200 mb-6">Manage Your Tasks Efficiently</p>
+          <p className="text-2xl font-light text-blue-200 mb-6">{t('ManageTasksEfficiently')}</p>
           <div className="mt-4 rounded-xl overflow-hidden shadow-2xl">
             <img 
               src="https://i.imgur.com/kDkPB6Z.jpeg" 
@@ -62,18 +64,19 @@ const Login = () => {
               onError={(e) => e.target.src = 'https://via.placeholder.com/600x400/1a365d/ffffff?text=Task+Management'}
             />
           </div>
+          {/* Restored tagline */}
           <p className="mt-6 text-blue-200 text-lg leading-relaxed">
-            Manage, organize, and complete your tasks efficiently with TaskFlow.
+            {t('LoginTagline')}
           </p>
         </div>
       </div>
 
-      {/* Right side – Login form with Neumorphism */}
+      {/* Right side – Login form */}
       <div className="w-full lg:w-1/2 bg-[#0f172a] flex items-center justify-center p-8">
         <div className="w-full max-w-md">
           <div className="bg-[#1e293b] rounded-3xl p-8 shadow-[20px_20px_60px_#0a0f1a,-20px_-20px_60px_#2a3a5a]">
-            <h2 className="text-3xl font-bold text-white text-center mb-2">Welcome Back</h2>
-            <p className="text-gray-400 text-center mb-8">Sign in to continue</p>
+            <h2 className="text-3xl font-bold text-white text-center mb-2">{t('WelcomeBack')}</h2>
+            <p className="text-gray-400 text-center mb-8">{t('SignInToContinue')}</p>
 
             {error && (
               <div className="bg-red-500/10 border border-red-500/30 text-red-400 p-3 rounded-lg mb-6 text-sm">
@@ -83,26 +86,26 @@ const Login = () => {
 
             <form onSubmit={handleSubmit} className="space-y-5">
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-1">Username or Email</label>
+                <label className="block text-sm font-medium text-gray-300 mb-1">{t('UsernameOrEmail')}</label>
                 <input
                   type="text"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   className="w-full bg-[#0f172a] border-0 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-[inset_8px_8px_16px_#080c16,inset_-8px_-8px_16px_#1a273a]"
-                  placeholder="Enter your username or email"
+                  placeholder={t('EnterUsernameOrEmail')}
                   required
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-1">Password</label>
+                <label className="block text-sm font-medium text-gray-300 mb-1">{t('Password')}</label>
                 <div className="relative">
                   <input
                     type={showPassword ? 'text' : 'password'}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     className="w-full bg-[#0f172a] border-0 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-[inset_8px_8px_16px_#080c16,inset_-8px_-8px_16px_#1a273a] pr-12"
-                    placeholder="Enter your password"
+                    placeholder={t('EnterPassword')}
                     required
                   />
                   <button
@@ -132,13 +135,13 @@ const Login = () => {
                       {rememberMe && <CheckCircle size={14} className="text-white" />}
                     </div>
                   </div>
-                  Remember Me
+                  {t('RememberMe')}
                 </label>
                 <Link 
                   to="/forgot-password" 
                   className="text-sm text-blue-400 hover:text-blue-300 hover:underline"
                 >
-                  Forgot Password?
+                  {t('ForgotPassword')}
                 </Link>
               </div>
 
@@ -147,14 +150,14 @@ const Login = () => {
                 className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-4 rounded-xl transition shadow-[10px_10px_30px_#080c16,-10px_-10px_30px_#2a3a5a] hover:shadow-[inset_10px_10px_30px_#0a1628,inset_-10px_-10px_30px_#2a3a5a]"
                 disabled={loading}
               >
-                {loading ? 'Logging in...' : 'Login'}
+                {loading ? t('LoggingIn') : t('Login')}
               </button>
             </form>
 
             <p className="mt-6 text-center text-sm text-gray-400">
-              Don't have an account?{' '}
+              {t('DontHaveAccount')}{' '}
               <Link to="/register" className="text-blue-400 hover:text-blue-300 hover:underline">
-                Sign Up
+                {t('SignUp')}
               </Link>
             </p>
           </div>

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { tasksAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
 import { 
   CheckCircle, 
   Clock, 
@@ -25,6 +26,7 @@ import {
 
 const Dashboard = () => {
   const { user } = useAuth();
+  const { t } = useLanguage();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [showWelcome, setShowWelcome] = useState(false);
@@ -39,11 +41,16 @@ const Dashboard = () => {
   const [categoryData, setCategoryData] = useState([]);
   const [recentTasks, setRecentTasks] = useState([]);
 
-  // Priority colour mapping
+  // Translation helper with fallback
+  const tr = (key, fallback) => {
+    const result = t(key);
+    return result === key ? fallback : result;
+  };
+
   const PRIORITY_COLORS = {
-    high: '#ef4444',    // Red
-    medium: '#3b82f6',  // Blue
-    low: '#f59e0b',     // Orange
+    high: '#ef4444',
+    medium: '#3b82f6',
+    low: '#f59e0b',
   };
 
   useEffect(() => {
@@ -73,7 +80,6 @@ const Dashboard = () => {
           pending: analytics.pending || 0,
           due_this_week: analytics.due_this_week || 0,
         });
-        // Map priority data with colours
         const priority = (analytics.priority_counts || []).map(item => ({
           ...item,
           color: PRIORITY_COLORS[item.priority] || '#94a3b8',
@@ -85,14 +91,14 @@ const Dashboard = () => {
         setRecentTasks(tasksRes.data.slice(0, 5));
       } catch (err) {
         console.error('Failed to load dashboard data:', err);
-        setError('Could not load dashboard data. Please try again.');
+        setError(tr('DashboardLoadError', 'Could not load dashboard data. Please try again.'));
       } finally {
         setLoading(false);
       }
     };
 
     fetchData();
-  }, []);
+  }, [t]);
 
   const dismissWelcome = () => {
     setShowWelcome(false);
@@ -104,7 +110,7 @@ const Dashboard = () => {
       <div className="flex items-center justify-center min-h-[60vh]">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-500 dark:text-gray-400">Loading dashboard...</p>
+          <p className="text-gray-500 dark:text-gray-400">{tr('Loading', 'Loading...')}</p>
         </div>
       </div>
     );
@@ -121,14 +127,15 @@ const Dashboard = () => {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Dashboard</h1>
+      <h1 className="text-3xl font-bold text-gray-900 dark:text-white">{tr('Dashboard', 'Dashboard')}</h1>
 
-      {/* Welcome Notification */}
       {showWelcome && (
         <div className="fixed top-20 right-4 bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-700 rounded-lg shadow-lg p-4 max-w-sm z-50 flex items-start gap-3">
           <div className="flex-1">
-            <p className="font-semibold text-green-800 dark:text-green-300">Login Successful</p>
-            <p className="text-sm text-green-700 dark:text-green-400">Welcome back, {user?.username || 'User'}!</p>
+            <p className="font-semibold text-green-800 dark:text-green-300">{tr('LoginSuccessful', 'Login successful')}</p>
+            <p className="text-sm text-green-700 dark:text-green-400">
+              {tr('WelcomeBackUser', 'Welcome back, {{username}}!').replace('{{username}}', user?.username || 'User')}
+            </p>
           </div>
           <button
             onClick={dismissWelcome}
@@ -144,7 +151,7 @@ const Dashboard = () => {
         <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Total Tasks</p>
+              <p className="text-sm font-medium text-gray-500 dark:text-gray-400">{tr('TotalTasks', 'Total Tasks')}</p>
               <p className="text-2xl font-bold text-gray-900 dark:text-white">{stats.total}</p>
             </div>
             <TrendingUp className="w-8 h-8 text-blue-500" />
@@ -153,7 +160,7 @@ const Dashboard = () => {
         <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Completed</p>
+              <p className="text-sm font-medium text-gray-500 dark:text-gray-400">{tr('Completed', 'Completed')}</p>
               <p className="text-2xl font-bold text-gray-900 dark:text-white">{stats.completed}</p>
             </div>
             <CheckCircle className="w-8 h-8 text-green-500" />
@@ -162,7 +169,7 @@ const Dashboard = () => {
         <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Pending</p>
+              <p className="text-sm font-medium text-gray-500 dark:text-gray-400">{tr('Pending', 'Pending')}</p>
               <p className="text-2xl font-bold text-gray-900 dark:text-white">{stats.pending}</p>
             </div>
             <Clock className="w-8 h-8 text-yellow-500" />
@@ -171,7 +178,7 @@ const Dashboard = () => {
         <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Due This Week</p>
+              <p className="text-sm font-medium text-gray-500 dark:text-gray-400">{tr('DueThisWeek', 'Due this week')}</p>
               <p className="text-2xl font-bold text-gray-900 dark:text-white">{stats.due_this_week}</p>
             </div>
             <AlertCircle className="w-8 h-8 text-red-500" />
@@ -184,10 +191,10 @@ const Dashboard = () => {
         <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
           <div className="flex items-center gap-2 mb-4">
             <PieChartIcon className="w-5 h-5 text-gray-500 dark:text-gray-400" />
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Tasks by Priority</h3>
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{tr('TasksByPriority', 'Tasks by Priority')}</h3>
           </div>
           {priorityData.length === 0 ? (
-            <p className="text-gray-500 dark:text-gray-400 text-center py-8">No tasks with priority assigned.</p>
+            <p className="text-gray-500 dark:text-gray-400 text-center py-8">{tr('NoTasksWithPriority', 'No tasks with priority assigned.')}</p>
           ) : (
             <ResponsiveContainer width="100%" height={260}>
               <PieChart>
@@ -198,13 +205,26 @@ const Dashboard = () => {
                   cx="50%"
                   cy="50%"
                   outerRadius={90}
-                  label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                  label={({ name, percent }) => {
+                    // Translate priority names
+                    let label = name;
+                    if (name === 'high') label = tr('High', 'High');
+                    else if (name === 'medium') label = tr('Medium', 'Medium');
+                    else if (name === 'low') label = tr('Low', 'Low');
+                    return `${label}: ${(percent * 100).toFixed(0)}%`;
+                  }}
                 >
                   {priorityData.map((entry) => (
                     <Cell key={`cell-${entry.priority}`} fill={entry.color} />
                   ))}
                 </Pie>
-                <Tooltip />
+                <Tooltip formatter={(value, name) => {
+                  let label = name;
+                  if (name === 'high') label = tr('High', 'High');
+                  else if (name === 'medium') label = tr('Medium', 'Medium');
+                  else if (name === 'low') label = tr('Low', 'Low');
+                  return [value, label];
+                }} />
               </PieChart>
             </ResponsiveContainer>
           )}
@@ -213,17 +233,32 @@ const Dashboard = () => {
         <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
           <div className="flex items-center gap-2 mb-4">
             <BarChartIcon className="w-5 h-5 text-gray-500 dark:text-gray-400" />
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Tasks by Status</h3>
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{tr('TasksByStatus', 'Tasks by Status')}</h3>
           </div>
           {statusData.length === 0 ? (
-            <p className="text-gray-500 dark:text-gray-400 text-center py-8">No tasks yet.</p>
+            <p className="text-gray-500 dark:text-gray-400 text-center py-8">{tr('NoTasksYet', 'No tasks yet.')}</p>
           ) : (
             <ResponsiveContainer width="100%" height={260}>
               <BarChart data={statusData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                <XAxis dataKey="status" tick={{ fill: '#94a3b8' }} />
+                <XAxis 
+                  dataKey="status" 
+                  tick={{ fill: '#94a3b8' }}
+                  tickFormatter={(value) => {
+                    if (value === 'completed') return tr('Completed', 'Completed');
+                    if (value === 'pending') return tr('Pending', 'Pending');
+                    return value;
+                  }}
+                />
                 <YAxis tick={{ fill: '#94a3b8' }} />
-                <Tooltip />
+                <Tooltip 
+                  formatter={(value) => value}
+                  labelFormatter={(label) => {
+                    if (label === 'completed') return tr('Completed', 'Completed');
+                    if (label === 'pending') return tr('Pending', 'Pending');
+                    return label;
+                  }}
+                />
                 <Bar dataKey="count" fill="#2563eb" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
@@ -235,7 +270,7 @@ const Dashboard = () => {
       {categoryData.length > 0 && (
         <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
           <div className="flex items-center gap-2 mb-4">
-            <span className="text-lg font-semibold text-gray-900 dark:text-white">Tasks by Category</span>
+            <span className="text-lg font-semibold text-gray-900 dark:text-white">{tr('TasksByCategory', 'Tasks by Category')}</span>
           </div>
           <div className="flex flex-wrap gap-3">
             {categoryData.map((cat) => (
@@ -256,9 +291,9 @@ const Dashboard = () => {
 
       {/* Recent Tasks */}
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Recent Tasks</h3>
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">{tr('RecentTasks', 'Recent Tasks')}</h3>
         {recentTasks.length === 0 ? (
-          <p className="text-gray-500 dark:text-gray-400 text-center py-6">No tasks yet. Create your first task!</p>
+          <p className="text-gray-500 dark:text-gray-400 text-center py-6">{tr('NoTasksCreateFirst', 'No tasks yet. Create your first task!')}</p>
         ) : (
           <div className="space-y-3">
             {recentTasks.map((task) => (
@@ -270,7 +305,7 @@ const Dashboard = () => {
                   <p className="font-medium text-gray-900 dark:text-white">{task.title}</p>
                   {task.due_date && (
                     <p className="text-sm text-gray-500 dark:text-gray-400">
-                      Due: {new Date(task.due_date).toLocaleDateString()}
+                      {tr('Due', 'Due')}: {new Date(task.due_date).toLocaleDateString()}
                     </p>
                   )}
                 </div>
@@ -281,7 +316,7 @@ const Dashboard = () => {
                       : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300'
                   }`}
                 >
-                  {task.status || 'Pending'}
+                  {task.status === 'completed' ? tr('Completed', 'Completed') : tr('Pending', 'Pending')}
                 </span>
               </div>
             ))}

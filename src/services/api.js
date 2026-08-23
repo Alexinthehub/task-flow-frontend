@@ -74,9 +74,17 @@ export const passwordResetAPI = {
   confirm: (uid, token, new_password) => api.post(`/reset/${uid}/${token}/`, { new_password }),
 };
 
+export const adminAPI = {
+  getUsers: () => api.get('/admin/users/'), 
+};
 // Feedback endpoint
 export const feedbackAPI = {
-  submit: (data) => api.post('/feedback/', data),
+  submit: (data) => api.post('/feedback/submit/', data, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  }),
+  getAll: () => api.get('/feedback/'),
+  update: (id, data) => api.patch(`/feedback/${id}/`, data),
+  delete: (id) => api.delete(`/feedback/${id}/delete/`),
 };
 
 export default api;

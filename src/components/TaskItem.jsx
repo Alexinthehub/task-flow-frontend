@@ -40,13 +40,11 @@ const TaskItem = ({ task, selected, onSelect, onEdit, onView }) => {
 
         <div className="flex-1">
           <h3 className="font-semibold text-gray-900 dark:text-white">{task.title}</h3>
-          {isLocked ? (
-            <p className="text-sm text-gray-400 italic">🔒 This task is locked</p>
-          ) : (
-            task.description && (
-              <p className="text-sm text-gray-600 dark:text-gray-400">{task.description}</p>
-            )
+          {/* Only show description if NOT locked */}
+          {!isLocked && task.description && (
+            <p className="text-sm text-gray-600 dark:text-gray-400">{task.description}</p>
           )}
+          {/* No extra "This task is locked" message */}
         </div>
 
         <div className="flex items-center gap-2 relative" onClick={(e) => e.stopPropagation()}>

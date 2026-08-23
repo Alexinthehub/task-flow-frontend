@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { tasksAPI, authAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
 import { Plus, Search } from 'lucide-react';
 import TaskItem from '../components/TaskItem';
 import TaskToolbar from '../components/TaskToolbar';
@@ -16,6 +17,14 @@ import ResetLockPasswordModal from '../components/ResetLockPasswordModal';
 
 const Tasks = () => {
   const { user } = useAuth();
+  const { t } = useLanguage();
+  
+  // Translation helper with fallback
+  const tr = (key, fallback) => {
+    const result = t(key);
+    return result === key ? fallback : result;
+  };
+
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all');
@@ -33,6 +42,7 @@ const Tasks = () => {
     status: 'pending',
     priority: 'medium',
     category_ids: [],
+    recurrence: 'none',
   });
 
   // Toolbar modals
@@ -62,7 +72,6 @@ const Tasks = () => {
   const [accountPassword, setAccountPassword] = useState('');
 
   const [actionTarget, setActionTarget] = useState('');
-  // Store selected task IDs for lock flow
   const pendingLockIds = useRef([]);
 
   // Load saved password & verification flag
@@ -73,7 +82,6 @@ const Tasks = () => {
     if (verified) setIsVerified(true);
   }, []);
 
-  // Clear selection when filter or search changes
   useEffect(() => {
     setSelectedTasks([]);
   }, [filter, searchQuery]);
@@ -91,7 +99,7 @@ const Tasks = () => {
       setTasks(response.data);
     } catch (err) {
       console.error('Failed to fetch tasks:', err);
-      setError('Could not load tasks');
+      setError(tr('TasksLoadError', 'Could not load tasks'));
     } finally {
       setLoading(false);
     }
@@ -137,12 +145,12 @@ const Tasks = () => {
               messages.push(`${field}: ${String(errors)}`);
             }
           }
-          setError(messages.join('\n') || 'Failed to save task.');
+          setError(messages.join('\n') || tr('SaveError', 'Failed to save task.'));
         }
       } else if (err.message) {
         setError(err.message);
       } else {
-        setError('Failed to save task. Please try again.');
+        setError(tr('SaveError', 'Failed to save task. Please try again.'));
       }
     }
   };
@@ -156,41 +164,26 @@ const Tasks = () => {
       status: task.status || 'pending',
       priority: task.priority || 'medium',
       category_ids: task.categories ? task.categories.map(c => c.id) : [],
+      recurrence: task.recurrence || 'none',
     });
     setShowModal(true);
     setError('');
   };
 
   const resetModal = () => {
-    setFormData({ title: '', description: '', due_date: '', status: 'pending', priority: 'medium', category_ids: [] });
+    setFormData({
+      title: '',
+      description: '',
+      due_date: '',
+      status: 'pending',
+      priority: 'medium',
+      category_ids: [],
+      recurrence: 'none',
+    });
     setEditingTask(null);
     setShowModal(false);
     setError('');
   };
-
-  const [formData, setFormData] = useState({
-  title: '',
-  description: '',
-  due_date: '',
-  status: 'pending',
-  priority: 'medium',
-  category_ids: [],
-  recurrence: 'none',
-});
-  <div>
-  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Recurrence</label>
-  <select
-    name="recurrence"
-    className="mt-1 w-full bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-    value={formData.recurrence}
-    onChange={handleInputChange}
-  >
-    <option value="none">None</option>
-    <option value="daily">Daily</option>
-    <option value="weekly">Weekly</option>
-    <option value="monthly">Monthly</option>
-  </select>
-</div>
 
   // ---------- Selection ----------
   const handleSelect = (id) => {
@@ -199,23 +192,23 @@ const Tasks = () => {
     );
   };
 
-const filteredTasks = tasks.filter(task => {
-  let passesFilter = true;
-  if (filter === 'completed') passesFilter = task.status === 'completed';
-  else if (filter === 'pending') passesFilter = task.status !== 'completed';
-  else if (filter === 'favorites') passesFilter = task.is_favorite;
-  else if (filter === 'pinned') passesFilter = task.is_pinned;
-  else if (filter === 'shared') passesFilter = task.has_shared === true;
-  // 'all' passes everything
+  const filteredTasks = tasks.filter(task => {
+    let passesFilter = true;
+    if (filter === 'completed') passesFilter = task.status === 'completed';
+    else if (filter === 'pending') passesFilter = task.status !== 'completed';
+    else if (filter === 'favorites') passesFilter = task.is_favorite;
+    else if (filter === 'pinned') passesFilter = task.is_pinned;
+    else if (filter === 'shared') passesFilter = task.has_shared === true;
+    // 'all' passes everything
 
-  let passesSearch = true;
-  if (searchQuery.trim()) {
-    const q = searchQuery.toLowerCase();
-    passesSearch = task.title.toLowerCase().includes(q) ||
-                   (task.description && task.description.toLowerCase().includes(q));
-  }
-  return passesFilter && passesSearch;
-});
+    let passesSearch = true;
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      passesSearch = task.title.toLowerCase().includes(q) ||
+                     (task.description && task.description.toLowerCase().includes(q));
+    }
+    return passesFilter && passesSearch;
+  });
 
   // SORT: pinned tasks first
   const sortedTasks = [...filteredTasks].sort((a, b) => {
@@ -242,7 +235,6 @@ const filteredTasks = tasks.filter(task => {
     if (selected.length === 0) return;
 
     if (action === 'lock') {
-      // Store the selected task IDs for later use
       pendingLockIds.current = selected.map(t => t.id);
       if (savedLockPassword && accountPassword && isVerified) {
         setShowLockOption(true);
@@ -265,7 +257,7 @@ const filteredTasks = tasks.filter(task => {
     } else if (action === 'share') {
       const hasLocked = selected.some(t => t.is_locked);
       if (hasLocked) {
-        alert('To share, you need to unlock the task first.');
+        alert(tr('UnlockToShare', 'To share, you need to unlock the task first.'));
         return;
       }
       setShowShare(true);
@@ -288,7 +280,7 @@ const filteredTasks = tasks.filter(task => {
     try {
       const username = user?.username || '';
       if (!username) {
-        alert('User not logged in.');
+        alert(tr('UserNotLoggedIn', 'User not logged in.'));
         return;
       }
       const response = await authAPI.login(username, password);
@@ -307,19 +299,18 @@ const filteredTasks = tasks.filter(task => {
         }
         setActionTarget('');
       } else {
-        alert('Invalid account password.');
+        alert(tr('InvalidAccountPassword', 'Invalid account password.'));
       }
     } catch (err) {
-      alert('Invalid account password.');
+      alert(tr('InvalidAccountPassword', 'Invalid account password.'));
     }
   };
 
   // ---------- Lock ----------
   const handleSetLock = async (lockPassword, rememberPassword) => {
-    // Use the stored IDs from pendingLockIds
     const taskIds = pendingLockIds.current;
     if (taskIds.length === 0) {
-      alert('No tasks selected.');
+      alert(tr('NoTasksSelected', 'No tasks selected.'));
       return;
     }
     try {
@@ -328,7 +319,6 @@ const filteredTasks = tasks.filter(task => {
           account_password: accountPassword,
           lock_password: lockPassword,
         });
-        console.log(`Task ${id} locked successfully.`);
       }
       if (rememberPassword) {
         localStorage.setItem('taskflow_lock_password', lockPassword);
@@ -343,7 +333,7 @@ const filteredTasks = tasks.filter(task => {
       setAccountPassword('');
     } catch (err) {
       console.error('Lock error:', err);
-      alert('Failed to lock tasks. Please try again.');
+      alert(tr('LockFailed', 'Failed to lock tasks. Please try again.'));
     }
   };
 
@@ -365,12 +355,12 @@ const filteredTasks = tasks.filter(task => {
               fetchTasks();
               setSelectedTasks([]);
               pendingLockIds.current = [];
-              alert('Tasks locked successfully.');
+              alert(tr('TasksLocked', 'Tasks locked successfully.'));
             }
           })
           .catch((err) => {
             console.error('Lock error:', err);
-            alert('Failed to lock one or more tasks.');
+            alert(tr('LockFailed', 'Failed to lock one or more tasks.'));
           });
       }
     } else if (option === 'setNew') {
@@ -401,7 +391,7 @@ const filteredTasks = tasks.filter(task => {
         setShowDelete(true);
       }
     } catch (err) {
-      alert('Invalid lock password for one or more tasks.');
+      alert(tr('InvalidLockPassword', 'Invalid lock password for one or more tasks.'));
     }
   };
 
@@ -418,7 +408,7 @@ const filteredTasks = tasks.filter(task => {
         setResetLockTask(null);
         setResetLockAccountPassword('');
       })
-      .catch(() => alert('Failed to reset lock password.'));
+      .catch(() => alert(tr('ResetLockFailed', 'Failed to reset lock password.')));
   };
 
   // ---------- Delete ----------
@@ -427,21 +417,24 @@ const filteredTasks = tasks.filter(task => {
     try {
       for (const task of selected) {
         await tasksAPI.delete(task.id);
-        const stored = JSON.parse(localStorage.getItem('deletedTasks') || '[]');
+        // Store in trash (per user)
+        const userId = user?.id || 'anonymous';
+        const storageKey = `deletedTasks_${userId}`;
+        const stored = JSON.parse(localStorage.getItem(storageKey) || '[]');
         const taskToDelete = { ...task, deleted_at: new Date().toISOString() };
-        localStorage.setItem('deletedTasks', JSON.stringify([...stored, taskToDelete]));
+        localStorage.setItem(storageKey, JSON.stringify([...stored, taskToDelete]));
       }
       fetchTasks();
       setSelectedTasks([]);
       setShowDelete(false);
     } catch (err) {
-      alert('Failed to delete tasks.');
+      alert(tr('DeleteFailed', 'Failed to delete tasks.'));
     }
   };
 
   // ---------- Share ----------
   const handleShare = (format) => {
-    alert(`Sharing as ${format} – feature coming soon.`);
+    alert(tr('ShareComingSoon', `Sharing as ${format} – feature coming soon.`));
     setShowShare(false);
   };
 
@@ -453,11 +446,11 @@ const filteredTasks = tasks.filter(task => {
       setShowDetails(true);
     } else if (action === 'duplicate') {
       if (hasLocked) {
-        alert('Cannot duplicate locked tasks. Unlock them first.');
+        alert(tr('CannotDuplicateLocked', 'Cannot duplicate locked tasks. Unlock them first.'));
         return;
       }
       for (const task of selected) {
-        tasksAPI.duplicate(task.id).catch(() => alert('Failed to duplicate task.'));
+        tasksAPI.duplicate(task.id).catch(() => alert(tr('DuplicateFailed', 'Failed to duplicate task.')));
       }
       fetchTasks();
     } else if (action === 'favorite') {
@@ -466,7 +459,7 @@ const filteredTasks = tasks.filter(task => {
           fetchTasks();
           setSelectedTasks([]);
         })
-        .catch(() => alert('Failed to toggle favorites.'));
+        .catch(() => alert(tr('FavoriteToggleFailed', 'Failed to toggle favorites.')));
     }
     setShowMoreActions(false);
   };
@@ -496,55 +489,51 @@ const filteredTasks = tasks.filter(task => {
     return (
       <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
         <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-sm w-full">
-          <h2 className="text-xl font-bold mb-4 text-gray-900 dark:text-white">Task Details</h2>
-          <p><span className="font-semibold">Created:</span> {new Date(task.created_at).toLocaleString()}</p>
-          <p><span className="font-semibold">Updated:</span> {new Date(task.updated_at).toLocaleString()}</p>
-          <button onClick={onClose} className="mt-4 w-full bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-white py-2 rounded-lg">OK</button>
+          <h2 className="text-xl font-bold mb-4 text-gray-900 dark:text-white">{tr('TaskDetails', 'Task details')}</h2>
+          <p><span className="font-semibold">{tr('Created', 'Created')}:</span> {new Date(task.created_at).toLocaleString()}</p>
+          <p><span className="font-semibold">{tr('Updated', 'Updated')}:</span> {new Date(task.updated_at).toLocaleString()}</p>
+          <button onClick={onClose} className="mt-4 w-full bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-white py-2 rounded-lg">{tr('Ok', 'OK')}</button>
         </div>
       </div>
     );
   };
 
   // ---------- Render ----------
-  if (loading) return <div className="text-center text-gray-500 dark:text-gray-400">Loading...</div>;
+  if (loading) return <div className="text-center text-gray-500 dark:text-gray-400">{tr('Loading', 'Loading...')}</div>;
 
   return (
     <div>
       <div className="flex justify-between items-center mb-4">
-        <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Tasks</h1>
+        <h1 className="text-3xl font-bold text-gray-900 dark:text-white">{tr('Tasks', 'Tasks')}</h1>
         <button
           onClick={() => setShowModal(true)}
           className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2"
         >
-          <Plus size={18} /> Add Task
+          <Plus size={18} /> {tr('AddTask', 'Add Task')}
         </button>
       </div>
 
       {/* Filters Bar */}
       <div className="flex flex-wrap gap-3 mb-6 items-center">
         <div className="flex gap-2 items-center">
-          <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Filter:</label>
+          <label className="text-sm font-medium text-gray-700 dark:text-gray-300">{tr('Filter', 'Filter:')}</label>
           <select
-  value={filter}
-  onChange={(e) => setFilter(e.target.value)}
-  className="bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-white rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
->
-  <option value="all">All</option>
-  <option value="pending">Pending</option>
-  <option value="completed">Completed</option>
-  <option value="favorites">Favorites</option>
-  <option value="pinned">Pinned</option>
-  <option value="shared">Shared</option>
-</select>
+            value={filter}
+            onChange={(e) => setFilter(e.target.value)}
+            className="bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-white rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="all">{tr('All', 'All')}</option>
+            <option value="pending">{tr('Pending', 'Pending')}</option>
+            <option value="completed">{tr('Completed', 'Completed')}</option>
+            <option value="favorites">{tr('Favorites', 'Favorites')}</option>
+            <option value="pinned">{tr('Pinned', 'Pinned')}</option>
+            <option value="shared">{tr('Shared', 'Shared')}</option>
+          </select>
         </div>
 
-        {/* Search Bar – aggressively block autofill */}
+        {/* Search Bar */}
         <div className="flex-1 min-w-[200px] relative">
-          <form
-            autoComplete="off"
-            onSubmit={(e) => e.preventDefault()}
-            className="w-full"
-          >
+          <form autoComplete="off" onSubmit={(e) => e.preventDefault()} className="w-full">
             <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 z-10" />
             <input
               type="search"
@@ -554,7 +543,7 @@ const filteredTasks = tasks.filter(task => {
               autoCorrect="off"
               autoCapitalize="off"
               spellCheck="false"
-              placeholder="Search tasks..."
+              placeholder={tr('SearchTasks', 'Search tasks...')}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full pl-10 pr-4 py-2 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 dark:text-white [&:-webkit-autofill]:bg-gray-100 [&:-webkit-autofill]:text-gray-900 [&:-webkit-autofill]:shadow-[inset_0_0_0px_1000px_#f3f4f6] dark:[&:-webkit-autofill]:bg-gray-700 dark:[&:-webkit-autofill]:text-white dark:[&:-webkit-autofill]:shadow-[inset_0_0_0px_1000px_#374151]"
@@ -597,10 +586,10 @@ const filteredTasks = tasks.filter(task => {
               )}
             </label>
           </div>
-          <span className="text-sm text-gray-500 dark:text-gray-400 ml-2">Select all</span>
+          <span className="text-sm text-gray-500 dark:text-gray-400 ml-2">{tr('SelectAll', 'Select all')}</span>
         </div>
         {sortedTasks.length === 0 ? (
-          <p className="text-center text-gray-500 dark:text-gray-400 py-8">No tasks found.</p>
+          <p className="text-center text-gray-500 dark:text-gray-400 py-8">{tr('NoTasksFound', 'No tasks found.')}</p>
         ) : (
           sortedTasks.map((task) => (
             <TaskItem
@@ -626,13 +615,13 @@ const filteredTasks = tasks.filter(task => {
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
           <div className="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-md">
             <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
-              {editingTask ? 'Edit Task' : 'Add Task'}
+              {editingTask ? tr('EditTask', 'Edit task') : tr('AddTask', 'Add Task')}
             </h2>
             {error && <div className="bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 p-3 rounded mb-4">{error}</div>}
             <form onSubmit={handleSubmit}>
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Title</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">{tr('Title', 'Title')}</label>
                   <input
                     type="text"
                     name="title"
@@ -643,7 +632,7 @@ const filteredTasks = tasks.filter(task => {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Description <span className="text-gray-500">(Optional)</span></label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">{tr('Description', 'Description')} <span className="text-gray-500">({tr('Optional', '(Optional)')})</span></label>
                   <textarea
                     name="description"
                     rows="3"
@@ -653,7 +642,7 @@ const filteredTasks = tasks.filter(task => {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Due Date</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">{tr('DueDate', 'Due date')}</label>
                   <input
                     type="date"
                     name="due_date"
@@ -663,35 +652,50 @@ const filteredTasks = tasks.filter(task => {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Status</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">{tr('Status', 'Status')}</label>
                   <select
                     name="status"
                     className="mt-1 w-full bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                     value={formData.status}
                     onChange={handleInputChange}
                   >
-                    <option value="pending">Pending</option>
+                    <option value="pending">{tr('Pending', 'Pending')}</option>
                   </select>
                 </div>
-                {/* Priority */}
+                {/* Priority – CORRECT: lowercase values */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Priority</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">{tr('Priority', 'Priority')}</label>
                   <select
                     name="priority"
                     className="mt-1 w-full bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                     value={formData.priority}
                     onChange={handleInputChange}
                   >
-                    <option value="low">Low</option>
-                    <option value="medium">Medium</option>
-                    <option value="high">High</option>
+                    <option value="low">{tr('Low', 'Low')}</option>
+                    <option value="medium">{tr('Medium', 'Medium')}</option>
+                    <option value="high">{tr('High', 'High')}</option>
+                  </select>
+                </div>
+                {/* Recurrence */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">{tr('Recurrence', 'Recurrence')}</label>
+                  <select
+                    name="recurrence"
+                    className="mt-1 w-full bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    value={formData.recurrence}
+                    onChange={handleInputChange}
+                  >
+                    <option value="none">{tr('None', 'None')}</option>
+                    <option value="daily">{tr('Daily', 'Daily')}</option>
+                    <option value="weekly">{tr('Weekly', 'Weekly')}</option>
+                    <option value="monthly">{tr('Monthly', 'Monthly')}</option>
                   </select>
                 </div>
               </div>
               <div className="flex justify-end gap-3 mt-6">
-                <button type="button" onClick={resetModal} className="px-4 py-2 bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-white rounded-lg">Cancel</button>
+                <button type="button" onClick={resetModal} className="px-4 py-2 bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-white rounded-lg">{tr('Cancel', 'Cancel')}</button>
                 <button type="submit" className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg">
-                  {editingTask ? 'Update' : 'Create'}
+                  {editingTask ? tr('Update', 'Update') : tr('Create', 'Create')}
                 </button>
               </div>
             </form>
@@ -699,12 +703,10 @@ const filteredTasks = tasks.filter(task => {
         </div>
       )}
 
-      {/* View Task Modal */}
+      {/* All other modals (unchanged) */}
       {showViewTask && activeTask && (
         <ViewTaskModal task={activeTask} onClose={() => setShowViewTask(false)} />
       )}
-
-      {/* Unlock Modal */}
       {showUnlock && unlockTarget && (
         <ConfirmPasswordModal
           onConfirm={handleUnlockConfirm}
@@ -720,8 +722,6 @@ const filteredTasks = tasks.filter(task => {
           }}
         />
       )}
-
-      {/* Reset Lock Password Modal */}
       {showResetLock && resetLockTask && (
         <ResetLockPasswordModal
           onReset={handleResetLock}
@@ -732,8 +732,6 @@ const filteredTasks = tasks.filter(task => {
           }}
         />
       )}
-
-      {/* Lock Option Modal */}
       {showLockOption && (
         <LockOptionModal
           onUseSaved={() => handleLockOption('useSaved')}
@@ -741,8 +739,6 @@ const filteredTasks = tasks.filter(task => {
           onCancel={() => setShowLockOption(false)}
         />
       )}
-
-      {/* Toolbar More Actions */}
       {showMoreActions && (
         <MoreActionsModal
           isFavorite={allSelectedFavorite()}
@@ -752,8 +748,6 @@ const filteredTasks = tasks.filter(task => {
           onToggleFavorite={() => handleMoreActions('favorite')}
         />
       )}
-
-      {/* Identity Verification */}
       {showVerify && (
         <VerifyIdentityModal
           email={user?.email || ''}
@@ -764,24 +758,18 @@ const filteredTasks = tasks.filter(task => {
           }}
         />
       )}
-
-      {/* Set Lock */}
       {showSetLock && (
         <SetLockModal
           onSet={handleSetLock}
           onCancel={() => setShowSetLock(false)}
         />
       )}
-
-      {/* Share */}
       {showShare && (
         <ShareModal
           onClose={() => setShowShare(false)}
           onShare={handleShare}
         />
       )}
-
-      {/* Delete */}
       {showDelete && (
         <DeleteConfirmModal
           count={selectedTasks.length}
@@ -789,17 +777,15 @@ const filteredTasks = tasks.filter(task => {
           onCancel={() => setShowDelete(false)}
         />
       )}
-
-      {/* Details */}
       {showDetails && getSelectedTaskObjects().length === 1 && (
         <DetailsModal task={getSelectedTaskObjects()[0]} onClose={() => setShowDetails(false)} />
       )}
       {showDetails && getSelectedTaskObjects().length !== 1 && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-sm w-full">
-            <h2 className="text-xl font-bold mb-4 text-gray-900 dark:text-white">Details</h2>
-            <p>Please select a single task to view details.</p>
-            <button onClick={() => setShowDetails(false)} className="mt-4 w-full bg-gray-200 dark:bg-gray-600 py-2 rounded-lg">OK</button>
+            <h2 className="text-xl font-bold mb-4 text-gray-900 dark:text-white">{tr('Details', 'Details')}</h2>
+            <p>{tr('SelectSingleTask', 'Please select a single task to view details.')}</p>
+            <button onClick={() => setShowDetails(false)} className="mt-4 w-full bg-gray-200 dark:bg-gray-600 py-2 rounded-lg">{tr('Ok', 'OK')}</button>
           </div>
         </div>
       )}
